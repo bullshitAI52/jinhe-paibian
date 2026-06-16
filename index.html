@@ -447,20 +447,15 @@
     let monthlyViewYear = 0;
     let monthlyViewMonth = 0;
 
-    function saveAttendanceRecord() {
+    async function saveAttendanceRecord() {
         const dateInput = document.getElementById('report-date').value;
         if (!dateInput) return;
         const shift = document.querySelector('input[name="shift"]:checked');
         if (!shift) return;
         const shiftLabel = shift.value;
         
-        const key = dateInput + '_' + shiftLabel;
-        const records = JSON.parse(localStorage.getItem('jf_attendance') || '{}');
-        
         const inputs = document.querySelectorAll('.staff-input');
         const positions = {};
-        const useCaptain = shiftLabel === '白班';
-        const posNameMap = useCaptain ? { '值班领班': '值班队长' } : {};
         inputs.forEach(input => {
             const name = input.value.trim();
             if (name) {
@@ -468,8 +463,19 @@
             }
         });
         
-        records[key] = { date: dateInput, shift: shiftLabel, positions: positions };
-        localStorage.setItem('jf_attendance', JSON.stringify(records));
+        try {
+            await fetch('/api/attendance/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: dateInput, shift: shiftLabel, positions: positions })
+            });
+        } catch (e) {
+            console.warn('API save failed, using localStorage fallback', e);
+            const key = dateInput + '_' + shiftLabel;
+            const records = JSON.parse(localStorage.getItem('jf_attendance') || '{}');
+            records[key] = { date: dateInput, shift: shiftLabel, positions: positions };
+            localStorage.setItem('jf_attendance', JSON.stringify(records));
+        }
     }
 
     function generateAndCopy() {
@@ -550,25 +556,30 @@
         renderMonthlyTable();
     }
 
-    function renderMonthlyTable() {
+    async function renderMonthlyTable() {
         document.getElementById('monthlyHeader').innerText = monthlyViewYear + '年' + monthlyViewMonth + '月';
-        const records = JSON.parse(localStorage.getItem('jf_attendance') || '{}');
         const tbody = document.getElementById('monthlyTbody');
         tbody.innerHTML = '';
+        let count = 0;
+        const posOrder = ['值班领班', '消控室', '巡逻岗', '1A岗', '2A岗'];
+        
+        // Try API, fallback to localStorage
+        let records = {};
+        try {
+            const res = await fetch('/api/attendance/list?year=' + monthlyViewYear + '&month=' + monthlyViewMonth);
+            const data = await res.json();
+            records = data.records || {};
+        } catch (e) {
+            records = JSON.parse(localStorage.getItem('jf_attendance') || '{}');
+        }
         
         const prefix = monthlyViewYear + '-' + String(monthlyViewMonth).padStart(2, '0');
-        let count = 0;
-        
-        const keys = Object.keys(records).filter(k => k.startsWith(prefix));
-        keys.sort();
-        
-        const posOrder = ['值班领班', '消控室', '巡逻岗', '1A岗', '2A岗'];
+        const keys = Object.keys(records).filter(k => k.startsWith(prefix)).sort();
         
         keys.forEach(key => {
             const rec = records[key];
             const d = rec.date.split('-');
             const displayDate = parseInt(d[1]) + '月' + parseInt(d[2]) + '号';
-            
             const row = document.createElement('tr');
             
             const tdDate = document.createElement('td');
@@ -595,17 +606,25 @@
             const delBtn = document.createElement('span');
             delBtn.className = 'del-cell';
             delBtn.innerText = '×';
-            delBtn.addEventListener('click', function(e) {
+            delBtn.addEventListener('click', async function(e) {
                 e.stopPropagation();
                 if (confirm('删除这条记录？')) {
-                    delete records[key];
-                    localStorage.setItem('jf_attendance', JSON.stringify(records));
+                    try {
+                        await fetch('/api/attendance/delete', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ date: rec.date, shift: rec.shift })
+                        });
+                    } catch (e) {
+                        const local = JSON.parse(localStorage.getItem('jf_attendance') || '{}');
+                        delete local[key];
+                        localStorage.setItem('jf_attendance', JSON.stringify(local));
+                    }
                     renderMonthlyTable();
                 }
             });
             tdDel.appendChild(delBtn);
             row.appendChild(tdDel);
-            
             tbody.appendChild(row);
             count++;
         });
@@ -621,15 +640,21 @@
             row.appendChild(td);
             tbody.appendChild(row);
         }
-        
         document.getElementById('monthlyCount').innerText = '共 ' + count + ' 条记录';
     }
 
-    function exportMonthlyText() {
-        const records = JSON.parse(localStorage.getItem('jf_attendance') || '{}');
+    async function exportMonthlyText() {
+        let records = {};
+        try {
+            const res = await fetch('/api/attendance/list?year=' + monthlyViewYear + '&month=' + monthlyViewMonth);
+            const data = await res.json();
+            records = data.records || {};
+        } catch (e) {
+            records = JSON.parse(localStorage.getItem('jf_attendance') || '{}');
+        }
+        
         const prefix = monthlyViewYear + '-' + String(monthlyViewMonth).padStart(2, '0');
-        const keys = Object.keys(records).filter(k => k.startsWith(prefix));
-        keys.sort();
+        const keys = Object.keys(records).filter(k => k.startsWith(prefix)).sort();
         
         if (keys.length === 0) {
             showToast('本月暂无记录');
