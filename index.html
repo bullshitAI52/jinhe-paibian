@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>金禾广场上班报告生成器(高颜值版)</title>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 14px; 
+            background: linear-gradient(135deg, #f0f4f8 0%, #e8ecf5 100%); 
+            color: #3a4149; 
+            margin: 0;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 100%; 
+            margin: 0 auto; 
+            background: rgba(255, 255, 255, 0.95); 
+            padding: 20px;
+            border-radius: 16px; 
+            box-shadow: 0 8px 24px rgba(149, 157, 165, 0.2);
+        }
+        
+        h2 { 
+            text-align: center; 
+            color: #1a73e8; 
+            margin: 0 0 20px 0; 
+            font-size: 22px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; color: #4a5568; }
+        
+        .date-control-group { display: flex; gap: 8px; }
+        .date-btn {
+            background: #e2e8f0; border: none; border-radius: 8px; padding: 0 14px;
+            font-size: 13px; color: #4a5568; font-weight: 600; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .date-btn:active { background: #cbd5e1; }
+        input[type="date"] {
+            flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px;
+            font-size: 15px; background-color: #fff; text-align: center; color: #1e293b;
+            font-weight: 500; -webkit-appearance: none; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .radio-group { display: flex; gap: 12px; margin-top: 6px; }
+        .radio-item { flex: 1; position: relative; }
+        .radio-item input[type="radio"] { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+        .radio-item label {
+            display: block; text-align: center; padding: 12px; background: #f1f5f9;
+            border-radius: 10px; font-size: 15px; border: 1px solid #e2e8f0; margin-bottom: 0; font-weight: 500;
+            color: #64748b; transition: all 0.2s;
+        }
+        .radio-item input[type="radio"]:checked + label {
+            background: #e0f2fe; color: #0284c7; border-color: #bae6fd; font-weight: 600;
+            box-shadow: 0 2px 4px rgba(2, 132, 199, 0.1);
+        }
+
+        .row {
+            display: flex; align-items: center; margin-bottom: 12px;
+            background: #f8fafc; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 10px;
+            transition: border-color 0.2s;
+        }
+        .row:focus-within { border-color: #3b82f6; }
+        .row label { width: 80px; margin-bottom: 0; font-size: 14px; color: #475569; font-weight: 600; }
+        .row input {
+            flex: 1; border: none; padding: 8px; font-size: 16px; background: transparent;
+            color: #1e293b; font-weight: 500; cursor: pointer; caret-color: transparent;
+        }
+        .clear-row-btn {
+            color: #94a3b8; font-size: 18px; width: 26px; height: 26px; cursor: pointer; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; border-radius: 50%;
+            transition: all 0.2s;
+        }
+        .clear-row-btn:active { background: #fee2e2; color: #ef4444; }
+
+        button.main-btn {
+            width: 100%; padding: 15px; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
+            color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold;
+            margin-top: 18px; box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3); transition: all 0.2s;
+        }
+        button.main-btn:active { transform: scale(0.98); opacity: 0.9; }
+        
+        .secondary-btn-group { display: flex; gap: 12px; margin-top: 12px; }
+        button.sec-btn {
+            flex: 1; padding: 12px; background: #fff; border: 1px solid #cbd5e1;
+            color: #475569; font-size: 14px; border-radius: 8px; font-weight: 600; transition: background 0.2s;
+        }
+        button.sec-btn:active { background: #f1f5f9; }
+        button.wx-btn { 
+            background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%); 
+            color: #fff; border: none; display: none;
+            box-shadow: 0 4px 10px rgba(39, 174, 96, 0.2);
+        }
+        button.wx-btn:active { transform: scale(0.98); }
+        
+        .picker-mask { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 23, 42, 0.6); display: none; z-index: 2000; backdrop-filter: blur(2px); }
+        .picker-content {
+            position: fixed; left: 0; right: 0; bottom: 0; background: #fff;
+            border-top-left-radius: 20px; border-top-right-radius: 20px; max-height: 75%;
+            overflow-y: auto; padding: 20px 20px 30px 20px; z-index: 2001; transform: translateY(100%); transition: transform 0.3s ease-out;
+            box-shadow: 0 -8px 32px rgba(0,0,0,0.15);
+        }
+        .picker-content.show { transform: translateY(0); }
+        .picker-handle { width: 40px; height: 5px; background: #cbd5e1; border-radius: 3px; margin: -10px auto 15px auto; }
+        .picker-title { font-size: 17px; font-weight: bold; margin-bottom: 20px; text-align: center; color: #1e293b; position: relative; }
+        .picker-close { position: absolute; right: 0; top: -2px; color: #94a3b8; font-size: 20px; padding: 0 5px; }
+        .picker-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+        .picker-item {
+            padding: 14px 5px; text-align: center; background: #f8fafc; border-radius: 10px;
+            font-size: 15px; border: 1px solid #e2e8f0; color: #334155; font-weight: 500;
+            text-overflow: ellipsis; overflow: hidden; white-space: nowrap; transition: all 0.1s;
+        }
+        .picker-item:active { background: #e2e8f0; color: #0f172a; transform: scale(0.95); }
+        .picker-custom { display: flex; gap: 8px; margin-top: 10px; border-top: 1px solid #f1f5f9; padding-top: 20px;}
+        .picker-custom input { flex: 1; border: 1px solid #cbd5e1; padding: 12px; border-radius: 8px; font-size: 15px; -webkit-appearance: none; background: #f8fafc;}
+        .picker-custom input:focus { border-color: #3b82f6; background: #fff; outline: none;}
+        .picker-custom button { padding: 0 18px; background: #27ae60; color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600;}
+
+        .manage-panel { margin-top: 24px; padding: 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; }
+        .manage-title { font-size: 13px; color: #64748b; margin-bottom: 12px; font-weight: 600; }
+        .tags-container { display: flex; flex-wrap: wrap; gap: 8px; }
+        .user-tag { background: #fff; padding: 6px 10px; border-radius: 6px; font-size: 14px; border: 1px solid #e2e8f0; font-weight: 500; color: #475569; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .user-tag .del-btn { color: #94a3b8; font-weight: bold; padding: 0 2px; font-size: 16px; transition: color 0.2s;}
+        .user-tag .del-btn:active { color: #ef4444; }
+        
+        #result-preview { margin-top: 18px; padding: 14px; background: #1e293b; border-radius: 10px; white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: #e2e8f0; font-family: monospace; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+        .toast { position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.9); color: #fff; padding: 14px 28px; border-radius: 24px; display: none; z-index: 3000; font-size: 14px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);}
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>金禾广场排班系统</h2>
+    
+    <div class="form-group">
+        <label>选择日期</label>
+        <div class="date-control-group">
+            <button class="date-btn" onclick="adjustDate(-1)">前一天</button>
+            <input type="date" id="report-date">
+            <button class="date-btn" onclick="adjustDate(1)">后一天</button>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label>选择班次</label>
+        <div class="radio-group">
+            <div class="radio-item">
+                <input type="radio" id="shift-night" name="shift" value="夜班">
+                <label for="shift-night">夜班</label>
+            </div>
+            <div class="radio-item">
+                <input type="radio" id="shift-day" name="shift" value="白班">
+                <label for="shift-day">白班</label>
+            </div>
+        </div>
+    </div>
+
+    <label style="margin-top: 18px;">人员排班 <span style="font-weight: normal; font-size: 12px; color:#94a3b8;">(点击更改，×键置空)</span></label>
+    <div id="staff-rows"></div>
+
+    <button class="main-btn" onclick="generateAndCopy()">一键生成并复制</button>
+    
+    <div class="secondary-btn-group">
+        <button class="sec-btn" onclick="resetToDefault()">恢复默认原班</button>
+        <button class="sec-btn wx-btn" id="go-wx-btn" onclick="goToWeChat()">去微信粘贴</button>
+    </div>
+
+    <div id="result-preview-title" style="margin-top: 18px; font-weight: bold; display: none; font-size: 14px; color: #475569;">已复制文本预览：</div>
+    <div id="result-preview" style="display: none;"></div>
+
+    <div class="manage-panel">
+        <div class="manage-title">人员名单库管理 (点击 × 彻底删除)</div>
+        <div class="tags-container" id="tags-box"></div>
+    </div>
+</div>
+
+<div class="picker-mask" id="pickerMask" onclick="closePicker()"></div>
+<div class="picker-content" id="pickerContent">
+    <div class="picker-handle"></div>
+    <div class="picker-title">
+        <span id="pickerTargetTitle">选择人员</span>
+        <span class="picker-close" onclick="closePicker()">✕</span>
+    </div>
+    <div class="picker-grid" id="pickerGrid"></div>
+    <div class="picker-custom">
+        <input type="text" id="custom-name-input" placeholder="输入不在列表的新名字...">
+        <button onclick="handleCustomSelect()">确定</button>
+    </div>
+</div>
+
+<div id="toast" class="toast">已成功复制！<br><span style="font-size:12px; color:#94a3b8; margin-top:4px; display:block;">请前往微信群粘贴</span></div>
+
+<script>
+    // 【更新核心】：已将你提供的最新 9 人名单全部预设为系统的默认基础名单
+    const defaultEmployees = ["张继兵", "王利艳", "索小龙", "田褀昌", "周林国", "曾卫明", "林允芳", "李道彰", "杨启平"];
+    
+    const initialPositions = [
+        { key: "值班领班", default: "曾卫明" },
+        { key: "消控室", default: "林允芳" },
+        { key: "巡逻岗", default: "李道彰" },
+        { key: "1A岗", default: "陈意民" },
+        { key: "2A岗", default: "杨启平" }
+    ];
+
+    let employeePool = JSON.parse(localStorage.getItem('jf_employee_pool'));
+    
+    // 如果本地存储是空的，或者用户想要重置名单，确保最新名单库能同步生效
+    if (!employeePool || employeePool.length === 0) {
+        employeePool = [...defaultEmployees];
+        localStorage.setItem('jf_employee_pool', JSON.stringify(employeePool));
+    }
+
+    let currentActiveInput = null;
+
+    window.onload = function() {
+        const now = new Date();
+        setElementDate(now);
+
+        const hour = now.getHours();
+        if (hour >= 6 && hour < 18) {
+            document.getElementById('shift-day').checked = true;
+        } else {
+            document.getElementById('shift-night').checked = true;
+        }
+
+        renderStaffRows();
+        renderManagementTags();
+    }
+
+    function setElementDate(dateObj) {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        document.getElementById('report-date').value = `${year}-${month}-${day}`;
+    }
+
+    function adjustDate(days) {
+        const currentDateInput = document.getElementById('report-date').value;
+        if (!currentDateInput) return;
+        const dateParts = currentDateInput.split('-');
+        const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
+        dateObj.setDate(dateObj.getDate() + days);
+        setElementDate(dateObj);
+    }
+
+    function renderStaffRows() {
+        const rowsContainer = document.getElementById('staff-rows');
+        rowsContainer.innerHTML = '';
+        initialPositions.forEach((pos) => {
+            const row = document.createElement('div');
+            row.className = 'row';
+            
+            const label = document.createElement('label');
+            label.innerText = pos.key + "：";
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'staff-input';
+            input.dataset.position = pos.key;
+            input.value = pos.default;
+            input.readOnly = true;
+            input.onclick = function() { openPicker(this); };
+            
+            const clearBtn = document.createElement('span');
+            clearBtn.className = 'clear-row-btn';
+            clearBtn.innerHTML = '×';
+            clearBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                input.value = '';
+            });
+            
+            row.appendChild(label);
+            row.appendChild(input);
+            row.appendChild(clearBtn);
+            rowsContainer.appendChild(row);
+        });
+    }
+
+    function resetToDefault() {
+        const inputs = document.querySelectorAll('.staff-input');
+        inputs.forEach(input => {
+            const found = initialPositions.find(pos => pos.key === input.dataset.position);
+            if (found) input.value = found.default;
+        });
+    }
+
+    function openPicker(inputEl) {
+        currentActiveInput = inputEl;
+        document.getElementById('pickerTargetTitle').innerText = `选择【${inputEl.dataset.position}】人员`;
+        
+        const grid = document.getElementById('pickerGrid');
+        grid.innerHTML = '';
+        
+        employeePool.forEach(name => {
+            const item = document.createElement('div');
+            item.className = 'picker-item';
+            item.innerText = name;
+            item.onclick = function() { selectName(name); };
+            grid.appendChild(item);
+        });
+
+        document.getElementById('pickerMask').style.display = 'block';
+        setTimeout(() => { document.getElementById('pickerContent').classList.add('show'); }, 10);
+    }
+
+    function closePicker() {
+        document.getElementById('pickerContent').classList.remove('show');
+        setTimeout(() => { document.getElementById('pickerMask').style.display = 'none'; }, 300);
+        document.getElementById('custom-name-input').value = '';
+    }
+
+    function selectName(name) {
+        if (currentActiveInput) currentActiveInput.value = name;
+        closePicker();
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.innerHTML = msg + '<br><span style="font-size:12px; color:#94a3b8; margin-top:4px; display:block;">请前往微信群粘贴</span>';
+        toast.style.display = 'block';
+        setTimeout(() => { toast.style.display = 'none'; }, 2200);
+    }
+
+    function generateAndCopy() {
+        const dateInput = document.getElementById('report-date').value;
+        if (!dateInput) { showToast('请先选择日期'); return; }
+        
+        const shift = document.querySelector('input[name="shift"]:checked');
+        if (!shift) { showToast('请选择班次'); return; }
+        const shiftLabel = shift.value;
+
+        const dateObj = new Date(dateInput + 'T12:00:00');
+        const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+        const weekday = weekDays[dateObj.getDay()];
+        
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        // Collect staff and count non-empty entries
+        const inputs = document.querySelectorAll('.staff-input');
+        let staffCount = 0;
+        const staffLines = [];
+        const useCaptain = shiftLabel === '白班';
+        const posNameMap = useCaptain ? { '值班领班': '值班队长' } : {};
+        inputs.forEach(input => {
+            const pos = input.dataset.position;
+            const name = input.value.trim();
+            if (name) {
+                staffCount++;
+                const displayPos = posNameMap[pos] || pos;
+                staffLines.push(`${displayPos}:${name}`);
+            }
+        });
+
+        let report = `金禾广场${year}年${month}月${day}号${shiftLabel}上班人员${staffCount}人\n`;
+        report += staffLines.join('\n');
+
+        // Copy to clipboard
+        const textarea = document.createElement('textarea');
+        textarea.value = report;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+        } catch (e) {
+            // fallback — user can manually select
+        }
+        document.body.removeChild(textarea);
+
+        // Show preview
+        const previewTitle = document.getElementById('result-preview-title');
+        const preview = document.getElementById('result-preview');
+        previewTitle.style.display = 'block';
+        preview.style.display = 'block';
+        preview.textContent = report;
+
+        // Show WeChat button
+        document.getElementById('go-wx-btn').style.display = 'block';
+
+        showToast('已成功复制！');
+    }
+
+    function handleCustomSelect() {
+        const input = document.getElementById('custom-name-input');
+        const name = input.value.trim();
+        if (!name) { return; }
+        
+        if (!employeePool.includes(name)) {
+            employeePool.push(name);
+            localStorage.setItem('jf_employee_pool', JSON.stringify(employeePool));
+        }
+        
+        selectName(name);
+        renderManagementTags();
+    }
+
+    function goToWeChat() {
+        // Try WeChat URL scheme; fallback to just re-copy
+        generateAndCopy();
+        // Some Android WeChat schemes:
+        window.location.href = 'weixin://';
+        setTimeout(() => {
+            // If it didn't work, at least text is copied
+        }, 500);
+    }
+
+    function renderManagementTags() {
+        const tagsBox = document.getElementById('tags-box');
+        tagsBox.innerHTML = '';
+        
+        employeePool.forEach((name, index) => {
+            const tag = document.createElement('span');
+            tag.className = 'user-tag';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.innerText = name;
+            
+            const delBtn = document.createElement('span');
+            delBtn.className = 'del-btn';
+            delBtn.innerText = '×';
+            delBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                employeePool.splice(index, 1);
+                localStorage.setItem('jf_employee_pool', JSON.stringify(employeePool));
+                renderManagementTags();
+            });
+            
+            tag.appendChild(nameSpan);
+            tag.appendChild(delBtn);
+            tagsBox.appendChild(tag);
+        });
+    }
+</script>
+
+</body>
+</html>
