@@ -132,6 +132,32 @@
         .user-tag .del-btn:active { color: #ef4444; }
         
         #result-preview { margin-top: 18px; padding: 14px; background: #1e293b; border-radius: 10px; white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: #e2e8f0; font-family: monospace; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+                .monthly-btn { 
+            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            color: #fff; border: none; display: none;
+            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+        }
+        .monthly-btn:active { transform: scale(0.98); }
+        .month-title-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .month-title-bar h3 { margin: 0; font-size: 18px; color: #1e293b; }
+        .month-nav-btn { background: #e2e8f0; border: none; border-radius: 8px; padding: 8px 16px; font-size: 14px; cursor: pointer; }
+        .month-nav-btn:active { background: #cbd5e1; }
+        .month-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .month-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
+        .month-table th { background: #f1f5f9; color: #475569; padding: 8px 6px; text-align: center; font-weight: 600; border: 1px solid #e2e8f0; white-space: nowrap; }
+        .month-table td { padding: 7px 6px; text-align: center; border: 1px solid #e2e8f0; color: #334155; }
+        .month-table tr:nth-child(even) td { background: #f8fafc; }
+        .month-table .date-cell { white-space: nowrap; font-weight: 600; color: #1e293b; }
+        .month-table .del-cell { color: #ef4444; font-size: 18px; cursor: pointer; padding: 0 8px; }
+        .month-table .del-cell:active { background: #fee2e2; }
+        .month-export-bar { display: flex; gap: 10px; margin-top: 16px; }
+        .month-export-bar button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .month-export-bar .export-btn { background: #059669; color: #fff; }
+        .month-export-bar .export-btn:active { background: #047857; }
+        .month-export-bar .close-btn { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .month-export-bar .close-btn:active { background: #e2e8f0; }
+        .month-count { font-size: 13px; color: #64748b; margin-bottom: 12px; }
+        
         .toast { position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.9); color: #fff; padding: 14px 28px; border-radius: 24px; display: none; z-index: 3000; font-size: 14px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1);}
     </style>
 </head>
@@ -171,6 +197,7 @@
     <div class="secondary-btn-group">
         <button class="sec-btn" onclick="resetToDefault()">恢复默认原班</button>
         <button class="sec-btn wx-btn" id="go-wx-btn" onclick="goToWeChat()">去微信粘贴</button>
+        <button class="sec-btn monthly-btn" id="monthly-btn" onclick="openMonthlyView()">📋 月度考勤</button>
     </div>
 
     <div id="result-preview-title" style="margin-top: 18px; font-weight: bold; display: none; font-size: 14px; color: #475569;">已复制文本预览：</div>
@@ -197,6 +224,40 @@
 </div>
 
 <div id="toast" class="toast">已成功复制！<br><span style="font-size:12px; color:#94a3b8; margin-top:4px; display:block;">请前往微信群粘贴</span></div>
+
+<div class="picker-mask" id="monthlyMask" onclick="closeMonthlyView()"></div>
+<div class="picker-content" id="monthlyContent" style="max-height: 85%;">
+    <div class="picker-handle"></div>
+    <div class="picker-title">
+        <span id="monthlyViewTitle">月度考勤表</span>
+        <span class="picker-close" onclick="closeMonthlyView()">✕</span>
+    </div>
+    <div class="month-title-bar">
+        <button class="month-nav-btn" onclick="monthlyNav(-1)">‹ 上月</button>
+        <h3 id="monthlyHeader">2026年6月</h3>
+        <button class="month-nav-btn" onclick="monthlyNav(1)">下月 ›</button>
+    </div>
+    <div class="month-count" id="monthlyCount"></div>
+    <div class="month-table-wrap">
+        <table class="month-table" id="monthlyTable">
+            <thead><tr>
+                <th>日期</th>
+                <th>班次</th>
+                <th>值班队长/领班</th>
+                <th>消控室</th>
+                <th>巡逻岗</th>
+                <th>1A岗</th>
+                <th>2A岗</th>
+                <th></th>
+            </tr></thead>
+            <tbody id="monthlyTbody"></tbody>
+        </table>
+    </div>
+    <div class="month-export-bar">
+        <button class="export-btn" onclick="exportMonthlyText()">📋 复制汇总</button>
+        <button class="close-btn" onclick="closeMonthlyView()">关闭</button>
+    </div>
+</div>
 
 <script>
     // 【更新核心】：已将你提供的最新 9 人名单全部预设为系统的默认基础名单
@@ -330,66 +391,6 @@
         setTimeout(() => { toast.style.display = 'none'; }, 2200);
     }
 
-    function generateAndCopy() {
-        const dateInput = document.getElementById('report-date').value;
-        if (!dateInput) { showToast('请先选择日期'); return; }
-        
-        const shift = document.querySelector('input[name="shift"]:checked');
-        if (!shift) { showToast('请选择班次'); return; }
-        const shiftLabel = shift.value;
-
-        const dateObj = new Date(dateInput + 'T12:00:00');
-        const weekDays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-        const weekday = weekDays[dateObj.getDay()];
-        
-        const year = dateObj.getFullYear();
-        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-        const day = String(dateObj.getDate()).padStart(2, '0');
-        // Collect staff and count non-empty entries
-        const inputs = document.querySelectorAll('.staff-input');
-        let staffCount = 0;
-        const staffLines = [];
-        const useCaptain = shiftLabel === '白班';
-        const posNameMap = useCaptain ? { '值班领班': '值班队长' } : {};
-        inputs.forEach(input => {
-            const pos = input.dataset.position;
-            const name = input.value.trim();
-            if (name) {
-                staffCount++;
-                const displayPos = posNameMap[pos] || pos;
-                staffLines.push(`${displayPos}:${name}`);
-            }
-        });
-
-        let report = `金禾广场${year}年${month}月${day}号${shiftLabel}上班人员${staffCount}人\n`;
-        report += staffLines.join('\n');
-
-        // Copy to clipboard
-        const textarea = document.createElement('textarea');
-        textarea.value = report;
-        textarea.style.position = 'fixed';
-        textarea.style.opacity = '0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-            document.execCommand('copy');
-        } catch (e) {
-            // fallback — user can manually select
-        }
-        document.body.removeChild(textarea);
-
-        // Show preview
-        const previewTitle = document.getElementById('result-preview-title');
-        const preview = document.getElementById('result-preview');
-        previewTitle.style.display = 'block';
-        preview.style.display = 'block';
-        preview.textContent = report;
-
-        // Show WeChat button
-        document.getElementById('go-wx-btn').style.display = 'block';
-
-        showToast('已成功复制！');
-    }
 
     function handleCustomSelect() {
         const input = document.getElementById('custom-name-input');
@@ -441,7 +442,230 @@
             tagsBox.appendChild(tag);
         });
     }
-</script>
 
+    // ============ 月度考勤功能 ============
+    let monthlyViewYear = 0;
+    let monthlyViewMonth = 0;
+
+    function saveAttendanceRecord() {
+        const dateInput = document.getElementById('report-date').value;
+        if (!dateInput) return;
+        const shift = document.querySelector('input[name="shift"]:checked');
+        if (!shift) return;
+        const shiftLabel = shift.value;
+        
+        const key = dateInput + '_' + shiftLabel;
+        const records = JSON.parse(localStorage.getItem('jf_attendance') || '{}');
+        
+        const inputs = document.querySelectorAll('.staff-input');
+        const positions = {};
+        const useCaptain = shiftLabel === '白班';
+        const posNameMap = useCaptain ? { '值班领班': '值班队长' } : {};
+        inputs.forEach(input => {
+            const name = input.value.trim();
+            if (name) {
+                positions[input.dataset.position] = { name: name };
+            }
+        });
+        
+        records[key] = { date: dateInput, shift: shiftLabel, positions: positions };
+        localStorage.setItem('jf_attendance', JSON.stringify(records));
+    }
+
+    function generateAndCopy() {
+        const dateInput = document.getElementById('report-date').value;
+        if (!dateInput) { showToast('请先选择日期'); return; }
+        
+        const shift = document.querySelector('input[name="shift"]:checked');
+        if (!shift) { showToast('请选择班次'); return; }
+        const shiftLabel = shift.value;
+
+        const dateObj = new Date(dateInput + 'T12:00:00');
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const inputs = document.querySelectorAll('.staff-input');
+        let staffCount = 0;
+        const staffLines = [];
+        const useCaptain = shiftLabel === '白班';
+        const posNameMap = useCaptain ? { '值班领班': '值班队长' } : {};
+        inputs.forEach(input => {
+            const pos = input.dataset.position;
+            const name = input.value.trim();
+            if (name) {
+                staffCount++;
+                const displayPos = posNameMap[pos] || pos;
+                staffLines.push(displayPos + ':' + name);
+            }
+        });
+
+        let report = '金禾广场' + year + '年' + month + '月' + day + '号' + shiftLabel + '上班人员' + staffCount + '人\n';
+        report += staffLines.join('\n');
+
+        // Copy to clipboard
+        const textarea = document.createElement('textarea');
+        textarea.value = report;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(textarea);
+
+        // Show preview
+        const previewTitle = document.getElementById('result-preview-title');
+        const preview = document.getElementById('result-preview');
+        previewTitle.style.display = 'block';
+        preview.style.display = 'block';
+        preview.textContent = report;
+
+        document.getElementById('go-wx-btn').style.display = 'block';
+        document.getElementById('monthly-btn').style.display = 'block';
+
+        // Auto-save to monthly attendance
+        saveAttendanceRecord();
+        showToast('已保存并复制！');
+    }
+
+    function openMonthlyView() {
+        if (monthlyViewYear === 0) {
+            const now = new Date();
+            monthlyViewYear = now.getFullYear();
+            monthlyViewMonth = now.getMonth() + 1;
+        }
+        renderMonthlyTable();
+        document.getElementById('monthlyMask').style.display = 'block';
+        setTimeout(() => { document.getElementById('monthlyContent').classList.add('show'); }, 10);
+    }
+
+    function closeMonthlyView() {
+        document.getElementById('monthlyContent').classList.remove('show');
+        setTimeout(() => { document.getElementById('monthlyMask').style.display = 'none'; }, 300);
+    }
+
+    function monthlyNav(delta) {
+        monthlyViewMonth += delta;
+        if (monthlyViewMonth < 1) { monthlyViewMonth = 12; monthlyViewYear--; }
+        if (monthlyViewMonth > 12) { monthlyViewMonth = 1; monthlyViewYear++; }
+        renderMonthlyTable();
+    }
+
+    function renderMonthlyTable() {
+        document.getElementById('monthlyHeader').innerText = monthlyViewYear + '年' + monthlyViewMonth + '月';
+        const records = JSON.parse(localStorage.getItem('jf_attendance') || '{}');
+        const tbody = document.getElementById('monthlyTbody');
+        tbody.innerHTML = '';
+        
+        const prefix = monthlyViewYear + '-' + String(monthlyViewMonth).padStart(2, '0');
+        let count = 0;
+        
+        const keys = Object.keys(records).filter(k => k.startsWith(prefix));
+        keys.sort();
+        
+        const posOrder = ['值班领班', '消控室', '巡逻岗', '1A岗', '2A岗'];
+        
+        keys.forEach(key => {
+            const rec = records[key];
+            const d = rec.date.split('-');
+            const displayDate = parseInt(d[1]) + '月' + parseInt(d[2]) + '号';
+            
+            const row = document.createElement('tr');
+            
+            const tdDate = document.createElement('td');
+            tdDate.className = 'date-cell';
+            tdDate.innerText = displayDate;
+            row.appendChild(tdDate);
+            
+            const tdShift = document.createElement('td');
+            tdShift.innerText = rec.shift;
+            row.appendChild(tdShift);
+            
+            posOrder.forEach(pos => {
+                const td = document.createElement('td');
+                if (rec.positions && rec.positions[pos] && rec.positions[pos].name) {
+                    td.innerText = rec.positions[pos].name;
+                } else {
+                    td.innerText = '-';
+                    td.style.color = '#94a3b8';
+                }
+                row.appendChild(td);
+            });
+            
+            const tdDel = document.createElement('td');
+            const delBtn = document.createElement('span');
+            delBtn.className = 'del-cell';
+            delBtn.innerText = '×';
+            delBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (confirm('删除这条记录？')) {
+                    delete records[key];
+                    localStorage.setItem('jf_attendance', JSON.stringify(records));
+                    renderMonthlyTable();
+                }
+            });
+            tdDel.appendChild(delBtn);
+            row.appendChild(tdDel);
+            
+            tbody.appendChild(row);
+            count++;
+        });
+        
+        if (count === 0) {
+            const row = document.createElement('tr');
+            const td = document.createElement('td');
+            td.colSpan = 8;
+            td.style.padding = '30px';
+            td.style.textAlign = 'center';
+            td.style.color = '#94a3b8';
+            td.innerText = '本月暂无考勤记录';
+            row.appendChild(td);
+            tbody.appendChild(row);
+        }
+        
+        document.getElementById('monthlyCount').innerText = '共 ' + count + ' 条记录';
+    }
+
+    function exportMonthlyText() {
+        const records = JSON.parse(localStorage.getItem('jf_attendance') || '{}');
+        const prefix = monthlyViewYear + '-' + String(monthlyViewMonth).padStart(2, '0');
+        const keys = Object.keys(records).filter(k => k.startsWith(prefix));
+        keys.sort();
+        
+        if (keys.length === 0) {
+            showToast('本月暂无记录');
+            return;
+        }
+
+        const posOrder = ['值班领班', '消控室', '巡逻岗', '1A岗', '2A岗'];
+        const posNames = ['值班队长/领班', '消控室', '巡逻岗', '1A岗', '2A岗'];
+        
+        let text = monthlyViewYear + '年' + monthlyViewMonth + '月考勤汇总\n';
+        text += '日期\t班次\t' + posNames.join('\t') + '\n';
+        
+        keys.forEach(key => {
+            const rec = records[key];
+            const d = rec.date.split('-');
+            const dateStr = parseInt(d[1]) + '/' + parseInt(d[2]);
+            const row = [dateStr, rec.shift];
+            posOrder.forEach(pos => {
+                row.push(rec.positions && rec.positions[pos] ? rec.positions[pos].name : '-');
+            });
+            text += row.join('\t') + '\n';
+        });
+        
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(textarea);
+        
+        showToast('考勤汇总已复制！可粘贴到Excel');
+    }
+
+
+</script>
 </body>
 </html>
